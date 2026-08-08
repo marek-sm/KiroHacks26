@@ -1,3 +1,9 @@
+> **Note on this fork:** FirstAId was built by a four-person team at a 2026 hackathon.
+> I designed the system architecture and API contract the team built against: the
+> two-stage parser/formatter split, the request/response surface, and the Bedrock tool
+> schemas, and built the retrieval layer and its similarity gate. The frontend, most of
+> the pipeline implementation, and the knowledge base provisioning are teammates' work.
+
 # FirstAid AI
 
 **Track:** Human-Centered Design  
