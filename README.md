@@ -1,73 +1,52 @@
-> **Note on this fork:** FirstAId was built by a four-person team at a 2026 hackathon.
-> I designed the system architecture and API contract the team built against: the
-> two-stage parser/formatter split, the request/response surface, and the Bedrock tool
-> schemas, and built the retrieval layer and its similarity gate. The frontend, most of
-> the pipeline implementation, and the knowledge base provisioning are teammates' work.
+## My role
+
+> FirstAId was built by a four-person team at KiroHacks 2026. I designed the system
+> architecture and the API contract the team built against, including the two-stage
+> parser/formatter split and the Bedrock tool schemas. I also built the retrieval layer
+> with its similarity gate, and the backend and frontend deploy scripts
+> (`scripts/deploy-backend.sh`, `scripts/deploy-frontend.sh`). Teammates built the
+> frontend and most of the pipeline implementation. The knowledge base provisioning is
+> also theirs. My commits are in this repo's history (`git log --author="Marek"`), and
+> the design documents are `design.md` and `.kiro/steering/`.
 
 # FirstAid AI
 
-**Track:** Human-Centered Design  
+**Status:** hackathon build, May 2026. The hosted demo is deactivated.  
 **Demo:** https://d32xsl7uhmmecy.cloudfront.net/ (deactivated)  
 **Video:** https://www.youtube.com/watch?v=1BiMNqMJajo&t=2s
 
 ## Overview
 
-FirstAid AI delivers structured, grounded first-aid triage guidance in under 5 seconds for underserved populations facing emergency healthcare navigation barriers. Users describe emergencies in plain language; the system returns color-coded severity assessments, imperative action steps, care tier recommendations, and nearby facility maps.
+FirstAid AI turns a plain-language description of an emergency into structured first-aid triage guidance grounded in a curated medical corpus. It returns a color-coded severity level, imperative action steps, a care-tier recommendation, and a map of nearby facilities.
 
-## Target Impact
+## Design
 
-**Affected Communities:**
-- Uninsured individuals who can't afford wrong care-tier decisions
-- Rural populations facing long transport times  
-- Non-native English speakers needing clear, imperative instructions
-- Low-income households requiring free, no-account emergency guidance
-- First-time caregivers lacking experience to calibrate severity
+**Serverless RAG pipeline:**
+- Two-stage LLM: Parser (retrieve or clarify) → Formatter (structured triage)
+- Bedrock Knowledge Base over first-aid protocols from the NHS, MedlinePlus, Mayo Clinic, British Red Cross, St John Ambulance, American Red Cross, and Healthdirect Australia
+- A similarity threshold gate: when no retrieved source scores above the threshold, the handler skips the formatter and returns an out-of-scope result with no triage steps
+- Design target: under 5 seconds end to end (not benchmarked)
 
-**Problem Solved:** The 30-second window between "something just happened" and "what do I do" — replacing SEO-farmed results, hedged AI prose, and hold music with instant, grounded medical triage.
-
-## Technical Innovation
-
-**Serverless RAG Pipeline:**
-- Two-stage LLM: Parser (retrieve/clarify) → Formatter (structured triage)
-- Bedrock Knowledge Base with curated medical corpus (NHS, CDC, Red Cross)
-- Similarity threshold gating prevents hallucinated medical advice
-- Sub-5-second end-to-end latency target
-
-**Safety-First Design:**
-- One clarification round-trip maximum (prevents conversation loops)
+**Safety decisions:**
+- At most one clarifying question; a second clarify request is treated as out of scope
 - Out-of-scope detection for non-medical queries
-- Reasoning field logged server-side, stripped from client responses
-- Over-escalation bias in severity assessment
+- The model's reasoning field is logged server-side and never returned to the client
+- The formatter prompt biases severity upward when it is uncertain (emergency over urgent care)
 
-**Equity Architecture:**
-- No accounts, authentication, or data retention
-- No payment tiers or premium features
-- WCAG AAA accessibility compliance
-- Mobile-first responsive design (375px target)
-
-
-## Kiro Development Methodology
-
-Built entirely using Kiro's full feature spectrum:
-
-- **Spec-driven development:** Complete architecture before coding
-- **Steering docs:** Persistent context preventing regressions
-- **Agent hooks:** Automated build validation and diff tracking
-- **MCP servers:** Accurate AWS/React API integration
-- **Vibe coding:** Generated complete modules from specifications
-
-**Result:** Zero integration bugs, no stale builds, no hallucinated API signatures — eliminating the three most expensive hackathon failure modes.
+**Access decisions:**
+- No sign-in or accounts
+- Mobile-first layout (375px design target)
 
 ## Repository Structure
 
 ```
 ├── frontend/          # React + Vite + TypeScript SPA
 ├── backend/           # Lambda function (Node.js 20.x)
-├── cdk/              # AWS CDK infrastructure
-├── .kiro/steering/   # Persistent AI context files
-└── KIRO_POWERS.md    # Detailed Kiro usage write-up
+├── cdk/               # AWS CDK infrastructure (deploy steps in cdk/DEPLOY.md)
+├── scripts/           # Setup and deploy scripts
+├── .kiro/steering/    # Architecture and API contract docs
+└── design.md          # System design and specification
 ```
-
 
 ## Architecture Overview
 
@@ -137,22 +116,22 @@ Built entirely using Kiro's full feature spectrum:
 5. Optional: Google Places API for nearby facilities
 6. Response → CloudFront → User (reasoning stripped)
 
-**Cost Estimate:**
-- **Development:** ~$50/month (Lambda + API Gateway + CloudFront)
-- **Production (1K users/day):** ~$200/month
-- **S3 Vector Store:** ~$1/month (storage only, no idle charges)
+## Running it
 
-## Performance Metrics
+Deployment needs an AWS account with Bedrock access, the AWS CLI, Node.js 20, and a Google Places API key. `./scripts/setup-all.sh` installs dependencies and builds the backend, then checks for the Places key. The stack deploy and knowledge base ingestion steps are in [`cdk/DEPLOY.md`](cdk/DEPLOY.md). The medical corpus documents are not included in this repo.
 
-| Metric | Target | Typical |
-|--------|--------|---------|
-| End-to-end latency | <5s | 2.8s |
-| Parser response | <2s | 1.1s |
-| KB retrieval | <1s | 0.4s |
-| Formatter response | <2s | 1.2s |
-| Places API | <1s | 0.3s |
+## Design targets
+
+These latency targets come from the design. The repo contains no benchmark for them.
+
+| Step | Target |
+|--------|--------|
+| End-to-end latency | <5s |
+| Parser response | <2s |
+| KB retrieval | <1s |
+| Formatter response | <2s |
+| Places API | <1s |
 
 ## License
 
 MIT License - See [LICENSE](LICENSE) for details.
-
